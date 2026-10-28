@@ -21,6 +21,18 @@ def load_data(file_buffer) -> pd.DataFrame:
         raise ValueError("Uploaded file contains an empty dataset.")
     if len(df.columns) == 0:
         raise ValueError("Dataset has no columns.")
+
+    # Clean whitespace in column names
+    df.columns = [str(c).strip() for c in df.columns]
+
+    # Drop entirely empty rows (common in datasets like HomeC with trailing lines)
+    df = df.dropna(how="all").reset_index(drop=True)
+
+    # In Kaggle HomeC.csv, the last row often contains corrupt/non-numeric footer data
+    # Check if the last row is largely NaN or malformed
+    if len(df) > 1 and df.iloc[-1].isna().sum() > (len(df.columns) / 2):
+        df = df.iloc[:-1].reset_index(drop=True)
+
     return df
 
 def analyze_schema(df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:

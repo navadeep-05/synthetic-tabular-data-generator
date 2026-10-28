@@ -62,9 +62,16 @@ def plot_interactive_eda(df: pd.DataFrame, col: str, col_type: str) -> go.Figure
         )
     else:
         # Categorical: Multi-color distinct palette per category
-        counts = df[col].astype(str).value_counts().reset_index()
+        clean_series = df[col].dropna()
+        if clean_series.empty:
+            clean_series = df[col].astype(str)
+            
+        counts = clean_series.astype(str).value_counts(sort=True, ascending=False).reset_index()
         counts.columns = [col, "Count"]
         top_counts = counts.head(15)
+        
+        if top_counts.empty:
+            top_counts = pd.DataFrame({col: ["No Data"], "Count": [0]})
         
         fig = px.bar(
             top_counts,
@@ -121,17 +128,24 @@ def plot_distributions_comparison(real_df: pd.DataFrame, synth_df: pd.DataFrame,
             margin=dict(l=20, r=20, t=50, b=20)
         )
     else:
-        r_dist = real_df[col].astype(str).value_counts(normalize=True).reset_index()
+        r_clean = real_df[col].dropna()
+        if r_clean.empty:
+            r_clean = real_df[col].astype(str)
+        r_dist = r_clean.astype(str).value_counts(normalize=True).reset_index()
         r_dist.columns = [col, "Proportion"]
         r_dist["Dataset"] = "Real"
         
-        s_dist = synth_df[col].astype(str).value_counts(normalize=True).reset_index()
+        s_clean = synth_df[col].dropna()
+        if s_clean.empty:
+            s_clean = synth_df[col].astype(str)
+        s_dist = s_clean.astype(str).value_counts(normalize=True).reset_index()
         s_dist.columns = [col, "Proportion"]
         s_dist["Dataset"] = "Synthetic"
         
         combined = pd.concat([r_dist, s_dist], ignore_index=True)
-        top_cats = r_dist.nlargest(10, "Proportion")[col].tolist()
-        combined = combined[combined[col].isin(top_cats)]
+        top_cats = r_dist.nlargest(10, "Proportion")[col].tolist() if not r_dist.empty else []
+        if top_cats:
+            combined = combined[combined[col].isin(top_cats)]
         
         fig = px.bar(
             combined,
